@@ -1,0 +1,14 @@
+flask
+flask-cors
+waitress
+pillow
+pypdf
+pdf2docx
+reportlab
+
+pymupdf
+python-pptx
+pandas
+openpyxl
+pdfplumber
+xhtml2pdf

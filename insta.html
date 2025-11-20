@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>pdfiy - All-in-One PDF Tools</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .nav-item.active { background-color: #eff6ff; color: #ef4444; border-right: 4px solid #ef4444; font-weight: 600; }
+        aside nav::-webkit-scrollbar { width: 6px; }
+        aside nav::-webkit-scrollbar-thumb { background-color: #e5e7eb; border-radius: 3px; }
+    </style>
+</head>
+<body class="bg-gray-50 h-screen flex overflow-hidden">
+    <aside class="w-72 bg-white shadow-lg flex-shrink-0 hidden md:flex flex-col z-20">
+        <div class="p-6 border-b border-gray-100 flex items-center gap-3">
+            <div class="bg-red-500 text-white p-2 rounded-lg"><i class="ph ph-file-pdf text-2xl"></i></div>
+            <h1 class="text-3xl font-bold text-gray-800 tracking-tight">pdfiy</h1>
+        </div>
+        <nav class="flex-1 overflow-y-auto py-4 px-3">
+            <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-4">Popular</div>
+            <ul class="space-y-1 mb-6" id="sidebar-list-popular"></ul>
+            <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-4">Convert & Edit</div>
+            <ul class="space-y-1 mb-6" id="sidebar-list-convert"></ul>
+            <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-4">Security & Pages</div>
+            <ul class="space-y-1" id="sidebar-list-security"></ul>
+        </nav>
+        <div class="p-4 border-t border-gray-100 text-center text-xs text-gray-400">© 2024 pdfiy Tools</div>
+    </aside>
+    <main class="flex-1 flex flex-col overflow-hidden relative">
+        <header class="md:hidden bg-white shadow-sm p-4 flex items-center justify-between z-10">
+            <div class="flex items-center gap-2"><i class="ph ph-file-pdf text-red-500 text-2xl"></i><h1 class="font-bold text-gray-800 text-xl">pdfiy</h1></div>
+            <button class="text-gray-500"><i class="ph ph-list text-2xl"></i></button>
+        </header>
+        <div class="flex-1 overflow-y-auto bg-gray-50 p-4 md:p-10">
+            <div class="max-w-4xl mx-auto">
+                <div class="text-center mb-10">
+                    <div class="inline-flex items-center justify-center w-16 h-16 bg-red-100 text-red-500 rounded-2xl mb-4"><i id="header-icon" class="ph ph-magic-wand text-3xl"></i></div>
+                    <h2 id="tool-title" class="text-3xl md:text-4xl font-bold text-gray-800 mb-3">Select a Tool</h2>
+                    <p id="tool-desc" class="text-gray-500 text-lg">Choose a tool from the sidebar to get started.</p>
+                </div>
+                <div id="drop-area" class="bg-white border-2 border-dashed border-red-200 rounded-3xl p-12 text-center cursor-pointer hover:border-red-500 hover:shadow-xl hover:shadow-red-50 transition-all duration-300 group shadow-sm" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)" onclick="document.getElementById('file-input').click()">
+                    <div class="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300"><i class="ph ph-cloud-arrow-up text-4xl"></i></div>
+                    <h3 class="text-2xl font-bold text-gray-700 mb-2">Select Files</h3>
+                    <p class="text-gray-400">or drop files here</p>
+                    <button class="mt-6 px-8 py-3 bg-red-500 text-white rounded-full font-semibold shadow-lg shadow-red-200 group-hover:bg-red-600 transition">Choose from Device</button>
+                    <input type="file" id="file-input" multiple class="hidden" onchange="handleFileSelect(event)">
+                </div>
+                <div id="action-area" class="mt-8 hidden">
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50"><h3 class="font-bold text-gray-700">Files Ready</h3><button onclick="clearAllFiles()" class="text-red-500 text-sm font-medium hover:text-red-700">Remove All</button></div>
+                        <div id="file-list" class="divide-y divide-gray-100 max-h-80 overflow-y-auto"></div>
+                    </div>
+                    
+                    <div id="tool-options" class="mt-6 hidden bg-white p-6 rounded-xl shadow-sm border border-red-100">
+                        <label id="option-label" for="custom-text" class="block text-sm font-bold text-gray-700 mb-2">Watermark Text</label>
+                        <input type="text" id="custom-text" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent transition outline-none" placeholder="Type here...">
+                    </div>
+
+                    <div class="mt-8 flex justify-center">
+                        <button id="convert-btn" onclick="startProcessing()" class="w-full md:w-auto min-w-[200px] px-8 py-4 bg-gray-800 hover:bg-gray-900 text-white text-lg font-bold rounded-xl shadow-xl transition-transform active:scale-95 flex items-center justify-center gap-3"><span>Start Processing</span><i class="ph ph-arrow-right font-bold"></i></button>
+                        <a id="download-btn" href="#" class="hidden w-full md:w-auto min-w-[200px] px-8 py-4 bg-green-600 hover:bg-green-700 text-white text-lg font-bold rounded-xl shadow-xl shadow-green-200 transition-transform active:scale-95 flex items-center justify-center gap-3 animate-bounce-in"><span>Download File</span><i class="ph ph-download-simple font-bold"></i></a>
+                    </div>
+                </div>
+                <div id="status-message" class="mt-6 hidden p-4 rounded-xl text-center font-medium animate-fade-in"></div>
+            </div>
+        </div>
+    </main>
+    <script>
+        // --- UPDATED TOOLS CONFIGURATION ---
+        const tools = {
+            'merge-pdf': { icon: 'ph-files', title: 'Merge PDF', desc: 'Combine multiple PDFs into one unified document.', accept: '.pdf', cat: 'popular' },
+            'split-pdf': { icon: 'ph-scissors', title: 'Split PDF', desc: 'Extract pages from your PDF.', accept: '.pdf', cat: 'popular' },
+            'compress-pdf': { icon: 'ph-arrows-in-line-vertical', title: 'Compress PDF', desc: 'Reduce file size while optimizing for maximal PDF quality.', accept: '.pdf', cat: 'popular' },
+            'img-to-pdf': { icon: 'ph-images', title: 'JPG to PDF', desc: 'Convert JPG, PNG images to PDF.', accept: '.jpg,.jpeg,.png', cat: 'popular' },
+            'pdf-to-word': { icon: 'ph-microsoft-word-logo', title: 'PDF to Word', desc: 'Convert your PDF to WORD documents.', accept: '.pdf', cat: 'popular' },
+            'pdf-to-powerpoint': { icon: 'ph-microsoft-powerpoint-logo', title: 'PDF to PowerPoint', desc: 'Turn your PDF into PPT.', accept: '.pdf', cat: 'convert' },
+            'pdf-to-excel': { icon: 'ph-microsoft-excel-logo', title: 'PDF to Excel', desc: 'Pull data straight from PDFs into Excel.', accept: '.pdf', cat: 'convert' },
+            'word-to-pdf': { icon: 'ph-microsoft-word-logo', title: 'Word to PDF', desc: 'Convert DOC and DOCX to PDF.', accept: '.doc,.docx', cat: 'convert' },
+            'powerpoint-to-pdf': { icon: 'ph-microsoft-powerpoint-logo', title: 'PowerPoint to PDF', desc: 'Convert PPT and PPTX to PDF.', accept: '.ppt,.pptx', cat: 'convert' },
+            'excel-to-pdf': { icon: 'ph-microsoft-excel-logo', title: 'Excel to PDF', desc: 'Convert EXCEL spreadsheets to PDF.', accept: '.xls,.xlsx', cat: 'convert' },
+            'edit-pdf': { icon: 'ph-pencil-simple', title: 'Edit PDF', desc: 'Add text, shapes, images to your PDF.', accept: '.pdf', cat: 'convert' },
+            'pdf-to-jpg': { icon: 'ph-image', title: 'PDF to JPG', desc: 'Convert each PDF page into a JPG image.', accept: '.pdf', cat: 'convert' },
+            'jpg-to-pdf': { icon: 'ph-images', title: 'JPG to PDF', desc: 'Convert JPG images to PDF.', accept: '.jpg,.png', cat: 'convert', alias: 'img-to-pdf' },
+            'html-to-pdf': { icon: 'ph-globe', title: 'HTML to PDF', desc: 'Convert webpages to PDF.', accept: '.html,.htm', cat: 'convert' },
+            
+            // --- UPDATED ENTRIES BELOW ---
+            'sign-pdf': { icon: 'ph-signature', title: 'Sign PDF', desc: 'Select PDF + Signature Image (JPG/PNG) together.', accept: '.pdf,.jpg,.png', cat: 'security' },
+            'watermark-pdf': { icon: 'ph-stamp', title: 'Watermark PDF', desc: 'Stamp an image or text over your PDF.', accept: '.pdf', cat: 'security', hasInput: true, inputLabel: 'Watermark Text', inputHolder: 'e.g. CONFIDENTIAL' },
+            'rotate-pdf': { icon: 'ph-arrows-clockwise', title: 'Rotate PDF', desc: 'Rotate your PDF pages.', accept: '.pdf', cat: 'security' },
+            'unlock-pdf': { icon: 'ph-lock-open', title: 'Unlock PDF', desc: 'Remove password security from PDF.', accept: '.pdf', cat: 'security', hasInput: true, inputLabel: 'Enter PDF Password (if known)', inputHolder: 'Password...' },
+            'protect-pdf': { icon: 'ph-lock-key', title: 'Protect PDF', desc: 'Encrypt your PDF with a password.', accept: '.pdf', cat: 'security', hasInput: true, inputLabel: 'Set Password', inputHolder: 'Enter a strong password...' },
+            'organize-pdf': { icon: 'ph-sort-ascending', title: 'Organize PDF', desc: 'Sort, add and delete PDF pages.', accept: '.pdf', cat: 'security', hasInput: true, inputLabel: 'Page Order (comma separated)', inputHolder: 'e.g. 1, 3-5, 8' },
+            'repair-pdf': { icon: 'ph-wrench', title: 'Repair PDF', desc: 'Fix a damaged PDF.', accept: '.pdf', cat: 'security' },
+            'page-numbers': { icon: 'ph-number-circle-one', title: 'Page Numbers', desc: 'Add page numbers into PDFs.', accept: '.pdf', cat: 'security' },
+            'scan-to-pdf': { icon: 'ph-scan', title: 'Scan to PDF', desc: 'Enhance photos to look like scanned documents.', accept: '.jpg,.png', cat: 'security' },
+            'compare-pdf': { icon: 'ph-scales', title: 'Compare PDF', desc: 'Select 2 PDF files to compare text.', accept: '.pdf', cat: 'security' },
+            'crop-pdf': { icon: 'ph-crop', title: 'Crop PDF', desc: 'Crop PDF margins.', accept: '.pdf', cat: 'security' }
+        };
+
+        let filesToConvert = [];
+        let currentToolId = 'img-to-pdf';
+        let processedFileUrl = null;
+
+        function initSidebar() {
+            const popList = document.getElementById('sidebar-list-popular');
+            const convList = document.getElementById('sidebar-list-convert');
+            const secList = document.getElementById('sidebar-list-security');
+            for (const [key, tool] of Object.entries(tools)) {
+                if (tool.alias) continue;
+                const li = document.createElement('li');
+                li.innerHTML = `<button onclick="switchTool('${key}')" id="nav-${key}" class="nav-item w-full text-left px-4 py-2.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition flex items-center gap-3 rounded-lg mx-2 text-sm"><i class="ph ${tool.icon} text-lg"></i><span>${tool.title}</span></button>`;
+                if (tool.cat === 'popular') popList.appendChild(li);
+                else if (tool.cat === 'convert') convList.appendChild(li);
+                else secList.appendChild(li);
+            }
+            switchTool('img-to-pdf');
+        }
+
+        function switchTool(id) {
+            currentToolId = id;
+            const tool = tools[id];
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            const navItem = document.getElementById(`nav-${id}`);
+            if(navItem) navItem.classList.add('active');
+            document.getElementById('tool-title').innerText = tool.title;
+            document.getElementById('tool-desc').innerText = tool.desc;
+            document.getElementById('header-icon').className = `ph ${tool.icon} text-3xl`;
+            document.getElementById('file-input').value = '';
+            document.getElementById('file-input').accept = tool.accept;
+            clearAllFiles();
+        }
+
+        function handleFileSelect(e) { addFiles(e.target.files); }
+        function handleDragOver(e) { e.preventDefault(); }
+        function handleDragLeave(e) { e.preventDefault(); }
+        function handleDrop(e) { e.preventDefault(); addFiles(e.dataTransfer.files); }
+
+        function addFiles(list) {
+            const tool = tools[currentToolId];
+            const allowed = tool.accept.replace(/ /g,'').split(',');
+            const newFiles = Array.from(list).filter(f => {
+                const ext = '.' + f.name.split('.').pop().toLowerCase();
+                return allowed.includes(ext);
+            });
+            newFiles.forEach(f => filesToConvert.push(f));
+            updateFileList();
+        }
+
+        function updateFileList() {
+            const area = document.getElementById('action-area');
+            const list = document.getElementById('file-list');
+            const opts = document.getElementById('tool-options');
+            
+            if (filesToConvert.length === 0) { 
+                area.classList.add('hidden'); 
+                opts.classList.add('hidden');
+                return; 
+            }
+            area.classList.remove('hidden');
+
+            const tool = tools[currentToolId];
+            if (tool.hasInput) {
+                opts.classList.remove('hidden');
+                document.getElementById('option-label').innerText = tool.inputLabel;
+                document.getElementById('custom-text').placeholder = tool.inputHolder;
+                document.getElementById('custom-text').value = ''; // clear prev
+            } else {
+                opts.classList.add('hidden');
+            }
+
+            resetButtons(); 
+            list.innerHTML = filesToConvert.map((f, i) => `<div class="p-4 flex items-center justify-between hover:bg-gray-50 transition"><div class="flex items-center gap-4"><div class="w-10 h-10 bg-red-100 text-red-500 rounded-lg flex items-center justify-center"><i class="ph ph-file text-xl"></i></div><div><p class="text-sm font-bold text-gray-700 truncate w-40 md:w-64">${f.name}</p><p class="text-xs text-gray-400">${(f.size/1024).toFixed(1)} KB</p></div></div><button onclick="removeFile(${i})" class="text-gray-400 hover:text-red-500 p-2 rounded-full hover:bg-red-50 transition"><i class="ph ph-trash text-lg"></i></button></div>`).join('');
+        }
+
+        function removeFile(i) { filesToConvert.splice(i, 1); updateFileList(); }
+        function clearAllFiles() { filesToConvert = []; updateFileList(); document.getElementById('status-message').classList.add('hidden'); if (processedFileUrl) { window.URL.revokeObjectURL(processedFileUrl); processedFileUrl = null; } }
+
+        function resetButtons() {
+            const startBtn = document.getElementById('convert-btn');
+            const dlBtn = document.getElementById('download-btn');
+            const tool = tools[currentToolId];
+            startBtn.classList.remove('hidden');
+            startBtn.disabled = false;
+            startBtn.innerHTML = `<span>Start ${tool.title}</span> <i class="ph ph-arrow-right font-bold"></i>`;
+            dlBtn.classList.add('hidden');
+        }
+
+        async function startProcessing() {
+            if (filesToConvert.length === 0) return;
+            const startBtn = document.getElementById('convert-btn');
+            const dlBtn = document.getElementById('download-btn');
+            startBtn.disabled = true;
+            startBtn.innerHTML = `<i class="ph ph-spinner animate-spin text-xl"></i> Processing...`;
+
+            const formData = new FormData();
+            formData.append('toolType', currentToolId);
+            let targetFormat = 'PDF';
+            if (currentToolId === 'pdf-to-jpg') targetFormat = 'JPG';
+            if (currentToolId === 'pdf-to-word') targetFormat = 'DOCX';
+            if (currentToolId === 'pdf-to-excel') targetFormat = 'XLSX';
+            formData.append('targetFormat', targetFormat);
+            
+            const customText = document.getElementById('custom-text').value;
+            formData.append('customText', customText);
+
+            filesToConvert.forEach(file => formData.append('file', file));
+
+            try {
+                const response = await fetch('http://127.0.0.1:5000/convert', { method: 'POST', body: formData });
+                if (!response.ok) throw new Error('Server Error');
+
+                const disposition = response.headers.get('Content-Disposition');
+                if (disposition && disposition.includes('attachment')) {
+                    const blob = await response.blob();
+                    if (processedFileUrl) window.URL.revokeObjectURL(processedFileUrl);
+                    processedFileUrl = window.URL.createObjectURL(blob);
+
+                    let downloadName = "pdfiy-result.pdf";
+                    if (currentToolId === 'pdf-to-word') downloadName = "converted.docx";
+                    else if (currentToolId === 'pdf-to-jpg') downloadName = "converted.zip";
+                    else if (currentToolId === 'pdf-to-excel') downloadName = "converted.xlsx";
+
+                    const fileNameMatch = disposition.match(/filename="?([^"]+)"?/);
+                    if (fileNameMatch && fileNameMatch[1]) {
+                        downloadName = fileNameMatch[1];
+                    }
+
+                    dlBtn.href = processedFileUrl;
+                    dlBtn.download = downloadName;
+                    dlBtn.onclick = function() { setTimeout(() => { window.location.reload(); }, 2000); };
+                    startBtn.classList.add('hidden');
+                    dlBtn.classList.remove('hidden');
+                    showStatus('Success! Click the button below to download.', false);
+                } else {
+                    const data = await response.json();
+                    showStatus(data.message, false);
+                    resetButtons();
+                }
+            } catch (err) {
+                console.error(err);
+                showStatus('Connection Failed or Server Error.', true);
+                startBtn.disabled = false;
+                startBtn.querySelector('span').innerText = 'Try Again';
+            }
+        }
+
+        function showStatus(msg, isError) {
+            const el = document.getElementById('status-message');
+            el.textContent = msg;
+            el.className = `mt-6 p-4 rounded-xl text-center font-medium animate-fade-in ${isError ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-700'}`;
+            el.classList.remove('hidden');
+        }
+
+        initSidebar();
+    </script>
+</body>
+</html>
