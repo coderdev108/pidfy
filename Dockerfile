@@ -1,36 +1,41 @@
 # 1. Python Base Image
 FROM python:3.9-slim
 
-# 2. System Dependencies Install karein (Heavy Duty)
-# 'cmake' aur 'pkg-config' add kiya hai kyunki OpenCV/Pdf2Docx ko iski zaroorat padti hai
-RUN apt-get update && apt-get install -y \
+# 2. System Dependencies (Fixed for Render Free Tier)
+# - Changed 'libgl1-mesa-glx' to 'libgl1' (Fixes package not found error)
+# - Added '--no-install-recommends' to reduce download size and RAM usage
+RUN apt-get update && apt-get install -y --no-install-recommends \
     libreoffice \
     default-jre \
     build-essential \
     cmake \
-    pkg-config \
-    libgl1-mesa-glx \
+    libgl1 \
     libglib2.0-0 \
     libxml2-dev \
     libxslt1-dev \
     python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# 3. Folder Set karein
+# 3. Set Working Directory
 WORKDIR /app
 
-# 4. Requirements Install karein
-COPY requirements.txt .
+# 4. Upgrade Pip first (Important for newer libraries)
 RUN pip install --no-cache-dir --upgrade pip
-# Pehle heavy libraries install karein taaki cache use ho sake
+
+# 5. Install Python Libraries
+COPY requirements.txt .
+
+# Pehle OpenCV Headless install karein (sabse bhari library)
 RUN pip install --no-cache-dir opencv-python-headless
+
+# Phir baaki sab install karein
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 5. Code Copy karein
+# 6. Copy Code
 COPY . .
 
-# 6. Port Expose karein
+# 7. Expose Port
 EXPOSE 5000
 
-# 7. Server Start karein (Waitress)
+# 8. Start Command
 CMD ["python", "server.py"]
