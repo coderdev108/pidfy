@@ -1,17 +1,15 @@
+# 1. Python Base Image
 FROM python:3.9-slim
 
-# 2. System Dependencies Install karein
-# - libreoffice: Word/PPT to PDF ke liye
-# - default-jre: LibreOffice ke liye Java
-# - build-essential: Python libs (jaise lxml, pdf2docx) ko compile karne ke liye (GCC/C++)
-# - libgl1 & libglib2.0-0: Image processing aur OpenCV ke liye zaroori
-# - libxml2-dev & libxslt1-dev: python-pptx ke liye zaroori
-
+# 2. System Dependencies Install karein (Heavy Duty)
+# 'cmake' aur 'pkg-config' add kiya hai kyunki OpenCV/Pdf2Docx ko iski zaroorat padti hai
 RUN apt-get update && apt-get install -y \
     libreoffice \
     default-jre \
     build-essential \
-    libgl1 \
+    cmake \
+    pkg-config \
+    libgl1-mesa-glx \
     libglib2.0-0 \
     libxml2-dev \
     libxslt1-dev \
@@ -22,9 +20,10 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # 4. Requirements Install karein
-# Pehle requirements copy karein taaki Docker cache use kar sake
 COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip
+# Pehle heavy libraries install karein taaki cache use ho sake
+RUN pip install --no-cache-dir opencv-python-headless
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 5. Code Copy karein

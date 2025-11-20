@@ -5,10 +5,10 @@ pillow
 pypdf
 pdf2docx
 reportlab
-
 pymupdf
 python-pptx
 pandas
 openpyxl
 pdfplumber
 xhtml2pdf
+opencv-python-headless
