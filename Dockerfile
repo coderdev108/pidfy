@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # 3. Set Working Directory
-WORKDIR /app
+WORKDIR /server
 
 # 4. Upgrade Pip first (Important for newer libraries)
 RUN pip install --no-cache-dir --upgrade pip
