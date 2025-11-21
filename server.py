@@ -22,6 +22,7 @@ from pptx.util import Inches
 from waitress import serve
 import sys
 import platform 
+import numpy as np # Used for Image processing in some cases
 
 # --- Setup ---
 app = Flask(__name__)
@@ -61,9 +62,12 @@ def get_libreoffice_command():
 def convert_office_to_pdf_libreoffice(input_path, output_format='pdf'):
     try:
         libreoffice_cmd = get_libreoffice_command()
-        cmd = [libreoffice_cmd, '--headless', '--convert-to', output_format, '--outdir', os.path.dirname(input_path), input_path]
-        print(f"Running LibreOffice: {cmd}")
-        process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out_dir = os.path.dirname(input_path)
+        
+        cmd = [libreoffice_cmd, '--headless', '--convert-to', output_format, '--outdir', out_dir, input_path]
+        print(f"Running: {cmd}")
+        
+        process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60)
         
         if process.returncode != 0:
             print(f"LibreOffice Error Log: {process.stderr.decode()}")
@@ -72,11 +76,26 @@ def convert_office_to_pdf_libreoffice(input_path, output_format='pdf'):
         base_name = os.path.splitext(input_path)[0]
         output_path = f"{base_name}.{output_format}"
         
-        if not os.path.exists(output_path): return None
+        if not os.path.exists(output_path): 
+            print("Output file not created.")
+            return None
         return output_path
     except Exception as e:
         print(f"Office Conversion Exception: {e}")
         return None
+
+# ==============================
+# 0. FRONTEND ROUTE (NEW FIX)
+# ==============================
+@app.route('/')
+def serve_frontend():
+    """Serves the index.html file when the user visits the root URL."""
+    try:
+        # Since index.html is in the same folder as server.py (Root Directory)
+        return send_file("index.html")
+    except Exception as e:
+        print(f"Error serving index.html: {e}")
+        return jsonify({"message": "Error loading the frontend application."}), 500
 
 # ==============================
 # 1. IMAGE PROCESSING
@@ -91,7 +110,6 @@ def process_img_to_pdf(file_list, target_format, is_scan_mode=False):
                 img = img.convert("L") 
                 sharpener = ImageEnhance.Sharpness(img); img = sharpener.enhance(2.0)
                 contrast = ImageEnhance.Contrast(img); img = contrast.enhance(1.5)
-                brightness = ImageEnhance.Brightness(img); img = brightness.enhance(1.1)
                 img = img.convert("RGB") 
             elif img.mode in ("RGBA", "P") and target_format in ['JPG', 'PDF']:
                 img = img.convert("RGB")
@@ -111,8 +129,7 @@ def process_img_to_pdf(file_list, target_format, is_scan_mode=False):
 
         byte_arr.seek(0)
         return byte_arr, new_filename, mimetype
-    except Exception as e:
-        print(f"Img Error: {e}"); return None, None, None
+    except Exception as e: return None, None, None
 
 # ==============================
 # 2. SIGN PDF
@@ -172,21 +189,17 @@ def process_pdf_to_jpg(file_storage):
         if temp_pdf: remove_temp_file(temp_pdf)
         return None, None, None
 
-# --- FIX: Added missing PDF to Word function ---
 def process_pdf_to_word(file_storage):
     temp_pdf = None; temp_docx = None
     try:
         temp_pdf = save_temp_file(file_storage)
         temp_docx = os.path.splitext(temp_pdf)[0] + ".docx"
-        
         cv = Converter(temp_pdf)
         cv.convert(temp_docx, start=0, end=None)
         cv.close()
-        
         byte_arr = io.BytesIO()
         with open(temp_docx, "rb") as f: byte_arr.write(f.read())
         byte_arr.seek(0)
-        
         remove_temp_file(temp_pdf); remove_temp_file(temp_docx)
         return byte_arr, "converted.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     except Exception as e:
@@ -217,14 +230,16 @@ def process_html_to_pdf(file_storage):
     except: return None, None, None
 
 def process_word_to_pdf(file_storage):
+    # Uses LibreOffice (Platform Independent)
     temp_docx = None; temp_pdf = None
     try:
         temp_docx = save_temp_file(file_storage)
         temp_pdf = convert_office_to_pdf_libreoffice(temp_docx, 'pdf')
-        if not temp_pdf or not os.path.exists(temp_pdf): raise Exception("LibreOffice conversion failed.")
+        if not temp_pdf: raise Exception("Conversion Failed")
         byte_arr = io.BytesIO()
         with open(temp_pdf, "rb") as f: byte_arr.write(f.read())
-        byte_arr.seek(0); remove_temp_file(temp_docx); remove_temp_file(temp_pdf)
+        byte_arr.seek(0)
+        remove_temp_file(temp_docx); remove_temp_file(temp_pdf)
         return byte_arr, "converted.pdf", "application/pdf"
     except Exception as e: 
         print(f"Word Error: {e}")
@@ -258,17 +273,18 @@ def process_excel_to_pdf(file_storage):
     except: return None, None, None
 
 def process_powerpoint_to_pdf(file_storage):
+    # Uses LibreOffice (Platform Independent)
     temp_ppt = None; temp_pdf = None
     try:
         temp_ppt = save_temp_file(file_storage)
         temp_pdf = convert_office_to_pdf_libreoffice(temp_ppt, 'pdf')
-        if not temp_pdf or not os.path.exists(temp_pdf): raise Exception("LibreOffice conversion failed.")
+        if not temp_pdf: raise Exception("Conversion Failed")
         byte_arr = io.BytesIO()
         with open(temp_pdf, "rb") as f: byte_arr.write(f.read())
-        byte_arr.seek(0); remove_temp_file(temp_ppt); remove_temp_file(temp_pdf)
+        byte_arr.seek(0)
+        remove_temp_file(temp_ppt); remove_temp_file(temp_pdf)
         return byte_arr, "slides.pdf", "application/pdf"
     except Exception as e: 
-        print(f"PPT Error: {e}")
         if temp_ppt: remove_temp_file(temp_ppt)
         return None, None, None
 
@@ -376,7 +392,7 @@ def convert_file():
     print(f"Tool: {tool_type} | Files: {len(uploaded_files)}")
 
     # 1. SPECIAL ROUTERS
-    if tool_type == 'pdf-to-word': data, name, mime = process_pdf_to_word(uploaded_files[0]) # Now defined
+    if tool_type == 'pdf-to-word': data, name, mime = process_pdf_to_word(uploaded_files[0])
     elif tool_type == 'word-to-pdf': data, name, mime = process_word_to_pdf(uploaded_files[0])
     elif tool_type == 'pdf-to-jpg': data, name, mime = process_pdf_to_jpg(uploaded_files[0])
     elif tool_type == 'split-pdf': data, name, mime = process_split_pdf(uploaded_files[0])
